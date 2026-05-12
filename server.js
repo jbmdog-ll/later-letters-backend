@@ -1,6 +1,5 @@
 const express = require('express');
 const multer  = require('multer');
-const cors    = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
 const app    = express();
@@ -13,12 +12,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// ── CORS — allow all origins ──────────────────────────────────────
+// ── CORS — handle every single request ───────────────────────────
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
   next();
 });
 
@@ -28,6 +30,14 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // ── HEALTH CHECK ──────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ status: 'Later Letters backend is running 💙' });
+});
+
+// ── OPTIONS preflight for all routes ─────────────────────────────
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.status(200).end();
 });
 
 // ── RECEIVE EMAIL FROM MAILGUN ────────────────────────────────────
@@ -76,7 +86,7 @@ app.post('/inbound', upload.any(), async (req, res) => {
 
 // ── GET LETTERS ───────────────────────────────────────────────────
 app.get('/letters', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No token' });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return res.status(401).json({ error: 'Invalid token' });
@@ -89,7 +99,7 @@ app.get('/letters', async (req, res) => {
 
 // ── SAVE LETTER ───────────────────────────────────────────────────
 app.post('/letters', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No token' });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return res.status(401).json({ error: 'Invalid token' });
@@ -117,7 +127,7 @@ app.post('/letters', async (req, res) => {
 
 // ── DELETE LETTER ─────────────────────────────────────────────────
 app.delete('/letters/:id', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No token' });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return res.status(401).json({ error: 'Invalid token' });
@@ -130,7 +140,7 @@ app.delete('/letters/:id', async (req, res) => {
 
 // ── GET PEOPLE ────────────────────────────────────────────────────
 app.get('/people', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No token' });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return res.status(401).json({ error: 'Invalid token' });
@@ -143,11 +153,11 @@ app.get('/people', async (req, res) => {
 
 // ── ADD PERSON ────────────────────────────────────────────────────
 app.post('/people', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No token' });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return res.status(401).json({ error: 'Invalid token' });
-  const name = req.body.name?.trim();
+  const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Name required' });
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const { data, error: dbError } = await supabase
@@ -160,7 +170,7 @@ app.post('/people', async (req, res) => {
 
 // ── DELETE PERSON ─────────────────────────────────────────────────
 app.delete('/people/:id', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No token' });
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return res.status(401).json({ error: 'Invalid token' });
