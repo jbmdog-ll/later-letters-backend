@@ -1,5 +1,6 @@
-const express = require('express');
-const multer  = require('multer');
+const express  = require('express');
+const cors     = require('cors');
+const multer   = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 
 const app    = express();
@@ -12,32 +13,23 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// ── CORS — handle every single request ───────────────────────────
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Max-Age', '86400');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
+// ── CORS ──────────────────────────────────────────────────────────
+const corsOptions = {
+  origin: '*',
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
 
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ── HEALTH CHECK ──────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.json({ status: 'Later Letters backend is running 💙' });
-});
-
-// ── OPTIONS preflight for all routes ─────────────────────────────
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.status(200).end();
 });
 
 // ── RECEIVE EMAIL FROM MAILGUN ────────────────────────────────────
@@ -106,19 +98,19 @@ app.post('/letters', async (req, res) => {
   const { data, error: dbError } = await supabase
     .from('letters')
     .insert({
-      user_id: user.id,
-      recipient: req.body.recipient || 'My loved one',
-      title: req.body.title,
-      body: req.body.body || '',
-      category: req.body.category || 'letter',
-      emoji: req.body.emoji || '',
-      photos: req.body.photos || [],
+      user_id:    user.id,
+      recipient:  req.body.recipient || 'My loved one',
+      title:      req.body.title,
+      body:       req.body.body || '',
+      category:   req.body.category || 'letter',
+      emoji:      req.body.emoji || '',
+      photos:     req.body.photos || [],
       audio_recs: req.body.audioRecs || [],
       video_recs: req.body.videoRecs || [],
-      locked: req.body.locked || false,
-      pin: req.body.pin || '',
-      timed: req.body.timed || false,
-      open_date: req.body.openDate || null
+      locked:     req.body.locked || false,
+      pin:        req.body.pin || '',
+      timed:      req.body.timed || false,
+      open_date:  req.body.openDate || null
     })
     .select().single();
   if (dbError) return res.status(500).json({ error: dbError.message });
